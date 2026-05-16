@@ -1,182 +1,231 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/docs/assets/zeroclaw-banner.png" alt="ZeroClaw" width="600" />
-</p>
+# ZeroClaw + Hindsight Long-Term Memory
 
-<h1 align="center">🦀 ZeroClaw — Personal AI Assistant</h1>
-
-<p align="center">
-  <strong>You own the agent. You own the data. You own the machine it runs on.</strong>
-</p>
-
-<p align="center">
-  <a href="https://github.com/zeroclaw-labs/zeroclaw/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/zeroclaw-labs/zeroclaw/ci.yml?branch=master&label=build" alt="Build Status" /></a>
-  <a href="https://github.com/zeroclaw-labs/zeroclaw/releases/latest"><img src="https://img.shields.io/github/v/release/zeroclaw-labs/zeroclaw?label=release" alt="Latest release" /></a>
-  <a href="LICENSE-APACHE"><img src="https://img.shields.io/badge/license-MIT%20OR%20Apache%202.0-blue.svg" alt="License" /></a>
-  <a href="https://www.rust-lang.org"><img src="https://img.shields.io/badge/rust-edition%202024-orange?logo=rust" alt="Rust Edition 2024" /></a>
-  <a href="https://github.com/zeroclaw-labs/zeroclaw/graphs/contributors"><img src="https://img.shields.io/github/contributors/zeroclaw-labs/zeroclaw?color=green" alt="Contributors" /></a>
-  <a href="https://discord.com/invite/wDshRVqRjx"><img src="https://img.shields.io/badge/Discord-join-5865F2?style=flat&logo=discord&logoColor=white" alt="Discord" /></a>
-</p>
-
-<p align="center">
-  <a href="docs/book/src/introduction.md">Docs</a> ·
-  <a href="docs/book/src/philosophy.md">Philosophy</a> ·
-  <a href="docs/book/src/getting-started/quick-start.md">Quick start</a> ·
-  <a href="docs/book/src/architecture/overview.md">Architecture</a> ·
-  <a href="https://discord.com/invite/wDshRVqRjx">Discord</a>
-</p>
+[English](#english) · [中文](#中文)
 
 ---
 
-ZeroClaw is an agent runtime — a single Rust binary you configure and run. It talks to LLM providers (Anthropic, OpenAI, Ollama, and ~20 others), reaches the world through 30+ channels (Discord, Telegram, Matrix, email, voice, webhooks, your own CLI), and acts through tools (shell, browser, HTTP, hardware, custom MCP servers). Everything runs on your machine, with your keys, in your workspace.
+## English
 
-Read the [Philosophy](docs/book/src/philosophy.md) for the four opinions that shape it.
+> **ZeroClaw** is a Rust-first autonomous AI agent runtime — fast, small, and extensible.
+> This fork adds **Hindsight** long-term memory integration, giving the agent persistent semantic memory with knowledge graph and cross-memory reasoning.
 
-## Install
+### What is Hindsight?
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/zeroclaw-labs/zeroclaw/master/install.sh | bash
-```
+[Hindsight](https://github.com/vectorize-io/hindsight) is a cloud-native long-term memory service for AI agents. It provides:
 
-Or clone and run:
+- **Semantic Search** — Store and retrieve memories using natural language
+- **Knowledge Graph** — Entity resolution and relationship tracking across memories
+- **Cross-Memory Reasoning** — Synthesize insights from multiple related memories
+- **Multi-Strategy Retrieval** — adaptive recall based on query context and budget
 
-```bash
-git clone https://github.com/zeroclaw-labs/zeroclaw.git
-cd zeroclaw
-./install.sh
-```
+### Features
 
-The installer asks whether you want a prebuilt binary (fast, ~seconds) or a source build (slower, customisable). Both end the same way — `zeroclaw onboard` kicks off automatically.
+| Feature | Description |
+|---------|-------------|
+| `hindsight_retain` | Store information to long-term memory with context and tags |
+| `hindsight_recall` | Semantic search across all stored memories |
+| `hindsight_reflect` | Reason across memories to synthesize a coherent answer |
+| Configurable Budget | `low` / `mid` / `high` recall depth control |
+| Auto-retain | Optional automatic memory capture on each conversation turn |
 
-Flags:
+### Quick Start
 
-```
-./install.sh --prebuilt              # always prebuilt; don't ask
-./install.sh --source                # always build from source
-./install.sh --minimal               # kernel only (~6.6 MB)
-./install.sh --source --features agent-runtime,channel-discord  # custom feature set
-./install.sh --skip-onboard          # install only, run `zeroclaw onboard` later
-./install.sh --list-features         # print available feature flags
-```
-
-Platform-specific notes: [Linux](docs/book/src/setup/linux.md) · [macOS](docs/book/src/setup/macos.md) · [Windows](docs/book/src/setup/windows.md) · [Docker](docs/book/src/setup/container.md)
-
-## Quick start
-
-```bash
-zeroclaw onboard                  # wizard: picks a provider, wires channels
-zeroclaw agent                    # interactive chat in the terminal
-zeroclaw service install          # register as systemd/launchctl/Windows Service
-zeroclaw service start            # run it always-on in the background
-```
-
-Full walkthrough: [Quick start](docs/book/src/getting-started/quick-start.md) — or skip the safety gates with [YOLO mode](docs/book/src/getting-started/yolo.md) for dev boxes.
-
-## What ZeroClaw does
-
-- **Multi-channel** — one agent answering you across [every channel you configure](docs/book/src/channels/overview.md). Inbound messages from Discord, Telegram, Matrix, email, webhooks, CLI — all delivered to the same agent loop.
-- **Provider-agnostic** — [model providers](docs/book/src/providers/overview.md) are pluggable. Configure Anthropic, OpenAI, local Ollama, or any OpenAI-compatible endpoint. [Fallback chains and routing](docs/book/src/providers/fallback-and-routing.md) keep the agent running when a provider flakes.
-- **Security-first, with escape hatches** — default autonomy is `supervised`: medium-risk ops require approval, high-risk blocked. Workspace boundaries, command policy, OS-level sandboxes (Landlock / Bubblewrap / Seatbelt / Docker), and cryptographic [tool receipts](docs/book/src/security/tool-receipts.md) on every action. [YOLO mode](docs/book/src/getting-started/yolo.md) exists for trusted dev environments.
-- **Hardware-capable** — GPIO / I2C / SPI / USB on Raspberry Pi, STM32, Arduino, and ESP32 via the `Peripheral` trait. See [Hardware](docs/book/src/hardware/index.md).
-- **Gateway + dashboard** — HTTP / WebSocket gateway for clients, with a web dashboard for chat, memory browsing, config editing, cron management, and tool inspection.
-- **SOP engine** — event-triggered [Standard Operating Procedures](docs/book/src/sop/index.md) (MQTT / webhook / cron / peripheral) with approval gates and resumable runs.
-- **ACP** — IDE / editor integration via [Agent Client Protocol](docs/book/src/channels/acp.md) (JSON-RPC 2.0 over stdio).
-
-## Configuration
-
-One TOML file at `~/.zeroclaw/config.toml`. Pointers:
-
-- [Provider configuration](docs/book/src/providers/configuration.md) — the universal `[providers.models.<name>]` schema
-- [Channels overview](docs/book/src/channels/overview.md) — per-channel `[channels.<name>]` blocks
-- [Security overview](docs/book/src/security/overview.md) — autonomy, sandboxing, tool receipts
-- [Full config reference](docs/book/src/reference/config.md) — generated from the live schema; every key documented
-
-For standard OpenAI Codex subscription auth, keep `config.toml` minimal:
+#### 1. Configure ZeroClaw
 
 ```toml
-default_provider = "openai-codex"
-default_model = "gpt-5-codex"
+# config.toml
+
+[memory]
+backend = "hindsight"
+
+[memory.hindsight]
+api_url = "https://api.hindsight.vectorize.io"
+api_key = "${HINDSIGHT_API_KEY}"   # Set env var or use literal key
+bank_id = "zeroclaw"               # Your memory bank identifier
+budget = "mid"                     # low | mid | high
+timeout_secs = 120
 ```
 
-Notes:
+#### 2. Environment Variable
 
-- Normal OpenAI Codex subscription auth uses stored auth profiles, not top-level `api_key` / `api_url`.
-- Only set `api_key` / `api_url` when intentionally targeting a custom OpenAI-compatible gateway or endpoint.
-- If you see `provider streaming failed, falling back to non-streaming chat`, ZeroClaw retries the same request in non-streaming mode. Check `zeroclaw auth status` before changing provider config.
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│            channels       gateway        ACP                 │
-│          (30+ adapters)   (REST/WS)    (JSON-RPC)            │
-│                        ↓                                     │
-│                   ZeroClaw runtime                           │
-│         ┌──────────┬──────────┬──────────┐                   │
-│         │  agent   │ security │   SOP    │                   │
-│         │   loop   │  policy  │  engine  │                   │
-│         └──────────┴──────────┴──────────┘                   │
-│              ↓          ↓           ↓                        │
-│          providers    tools      memory                      │
-│         (Anthropic,  (shell,    (SQLite,                     │
-│          OpenAI,     browser,    embeddings)                 │
-│          Ollama,     HTTP,                                   │
-│          ~20 more)   hardware)                               │
-└──────────────────────────────────────────────────────────────┘
+```bash
+export HINDSIGHT_API_KEY="your-api-key-here"
 ```
 
-Full detail with Mermaid diagrams: [Architecture overview](docs/book/src/architecture/overview.md) · [Request lifecycle](docs/book/src/architecture/request-lifecycle.md) · [Crates](docs/book/src/architecture/crates.md).
+#### 3. Run
 
-## Contributing
+```bash
+cargo run --release
+```
 
-Start with [how to contribute](docs/book/src/contributing/how-to.md). Larger changes go through the [RFC process](docs/book/src/contributing/rfcs.md). Real-time chat lives on [Discord](https://discord.com/invite/wDshRVqRjx) (the best way to reach the team); durable work tracking is on [GitHub issues](https://github.com/zeroclaw-labs/zeroclaw/issues).
+### Configuration Reference
 
-Good places to start:
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `api_url` | `string` | `https://api.hindsight.vectorize.io` | Hindsight API endpoint |
+| `api_key` | `string` | `${HINDSIGHT_API_KEY}` | API key (or env var) |
+| `bank_id` | `string` | `zeroclaw` | Memory bank identifier |
+| `budget` | `string` | `mid` | Recall budget: `low`, `mid`, or `high` |
+| `timeout_secs` | `u64` | `120` | Request timeout in seconds |
+| `auto_retain` | `bool` | `true` | Automatically retain each turn |
+| `auto_recall` | `bool` | `true` | Automatically recall relevant memories before each turn |
+| `retain_tags` | `[]string` | `[]` | Tags attached to all retained memories |
+| `retain_source` | `string` | `null` | Source label for retained memories |
 
-- New channel → `crates/zeroclaw-channels/`
-- New provider → `crates/zeroclaw-providers/`
-- New tool → `crates/zeroclaw-tools/`
-- Hardware support → `crates/zeroclaw-hardware/`
-- Docs → `docs/book/src/`
+### Architecture
 
-AI-assisted PRs are welcome; see [Contribution culture (RFC #5615)](https://github.com/zeroclaw-labs/zeroclaw/issues/5615) for the co-authorship norms.
+```
+zeroclaw-runtime
+  └── tools/mod.rs          # Tool registration
+       ├── hindsight_retain.rs   # retain tool
+       ├── hindsight_recall.rs  # recall tool
+       └── hindsight_reflect.rs # reflect tool
 
-<!-- BEGIN:RECENT_CONTRIBUTORS -->
-<!-- END:RECENT_CONTRIBUTORS -->
+zeroclaw-tools
+  ├── hindsight.rs         # Shared types (Budget, RecallResult, ...)
+  ├── hindsight_client.rs  # REST API client
+  └── hindsight_config.rs  # HindsightConfig (zeroclaw-tools layer)
 
-## Security
+zeroclaw-config
+  └── schema.rs            # HindsightSchemaConfig (config layer)
+```
 
-Do not file public issues for security vulnerabilities. Email `security@zeroclaw.dev`. See [SECURITY.md](SECURITY.md) for the full policy.
+### Build
 
-## Official repository & impersonation notice
+```bash
+# Install Rust 1.93+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 
-This is the only official ZeroClaw repository:
+# Check compilation
+cargo check --workspace
 
-> <https://github.com/zeroclaw-labs/zeroclaw>
+# Run tests
+cargo test
 
-Any other repository, organization, domain, or package claiming to be "ZeroClaw" or implying affiliation with ZeroClaw Labs is **unauthorized and not affiliated with this project**.
+# Build release
+cargo build --release
+```
 
-## License
+### Related Projects
 
-Dual-licensed: [MIT](LICENSE-MIT) OR [Apache 2.0](LICENSE-APACHE). You may choose either. Contributors automatically grant rights under both — see [CLA](docs/book/src/contributing/cla.md). The **ZeroClaw** name and logo are trademarks of ZeroClaw Labs.
+- [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) — The base agent runtime
+- [Hindsight](https://github.com/vectorize-io/hindsight) — Long-term memory backend
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent) — Reference implementation
 
-## Credits
+### License
 
-Built and maintained by the community — original creator [@theonlyhennygod](https://github.com/theonlyhennygod); project lead [@JordanTheJet](https://github.com/JordanTheJet). Full maintainer list in [Communication](docs/book/src/contributing/communication.md).
+MIT OR Apache-2.0
 
-Thanks to the communities that incubated early work: **Harvard University**, **MIT**, **Sundai Club**, and every contributor pushing it forward.
+---
 
-<p align="center">
-  <a href="https://www.star-history.com/#zeroclaw-labs/zeroclaw&type=date&legend=top-left">
-    <picture>
-     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=zeroclaw-labs/zeroclaw&type=date&theme=dark&legend=top-left" />
-     <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=zeroclaw-labs/zeroclaw&type=date&legend=top-left" />
-     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=zeroclaw-labs/zeroclaw&type=date&legend=top-left" />
-    </picture>
-  </a>
-</p>
+## 中文
 
-<p align="center">
-  <a href="https://github.com/zeroclaw-labs/zeroclaw/graphs/contributors">
-    <img src="https://contrib.rocks/image?repo=zeroclaw-labs/zeroclaw" alt="ZeroClaw contributors" />
-  </a>
-</p>
+> **ZeroClaw** 是一个 Rust-first 的自主 AI Agent 运行时——快、小巧、可扩展。
+> 本分支集成了 **Hindsight** 长期记忆系统，为 Agent 提供持久化语义记忆、知识图谱和跨记忆推理能力。
+
+### 什么是 Hindsight？
+
+[Hindsight](https://github.com/vectorize-io/hindsight) 是面向 AI Agent 的云端长期记忆服务，提供：
+
+- **语义搜索** — 用自然语言存储和检索记忆
+- **知识图谱** — 跨记忆的实体解析和关系追踪
+- **跨记忆推理** — 从多个相关记忆中综合提炼洞察
+- **多策略检索** — 根据查询上下文和预算自适应召回
+
+### 功能一览
+
+| 功能 | 说明 |
+|------|------|
+| `hindsight_retain` | 将信息存入长期记忆，支持上下文和标签 |
+| `hindsight_recall` | 在所有存储记忆中语义搜索 |
+| `hindsight_reflect` | 跨记忆推理，综合连贯答案 |
+| 可配置预算 | `low` / `mid` / `high` 三档召回深度 |
+| 自动记忆 | 可选：每次对话轮次自动捕获记忆 |
+
+### 快速开始
+
+#### 1. 配置 ZeroClaw
+
+```toml
+# config.toml
+
+[memory]
+backend = "hindsight"
+
+[memory.hindsight]
+api_url = "https://api.hindsight.vectorize.io"
+api_key = "${HINDSIGHT_API_KEY}"   # 设置环境变量或直接写 key
+bank_id = "zeroclaw"               # 你的记忆库标识符
+budget = "mid"                     # low | mid | high
+timeout_secs = 120
+```
+
+#### 2. 设置环境变量
+
+```bash
+export HINDSIGHT_API_KEY="your-api-key-here"
+```
+
+#### 3. 运行
+
+```bash
+cargo run --release
+```
+
+### 配置参考
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `api_url` | `string` | `https://api.hindsight.vectorize.io` | Hindsight API 地址 |
+| `api_key` | `string` | `${HINDSIGHT_API_KEY}` | API 密钥 |
+| `bank_id` | `string` | `zeroclaw` | 记忆库标识符 |
+| `budget` | `string` | `mid` | 召回预算：`low`、`mid` 或 `high` |
+| `timeout_secs` | `u64` | `120` | 请求超时（秒） |
+| `auto_retain` | `bool` | `true` | 自动保留每轮对话 |
+| `auto_recall` | `bool` | `true` | 每轮对话前自动召回相关记忆 |
+| `retain_tags` | `[]string` | `[]` | 附加到所有记忆的标签 |
+| `retain_source` | `string` | `null` | 记忆来源标签 |
+
+### 项目结构
+
+```
+zeroclaw-runtime
+  └── tools/mod.rs          # 工具注册
+       ├── hindsight_retain.rs   # retain 工具
+       ├── hindsight_recall.rs  # recall 工具
+       └── hindsight_reflect.rs # reflect 工具
+
+zeroclaw-tools
+  ├── hindsight.rs         # 共享类型（Budget, RecallResult, …）
+  ├── hindsight_client.rs  # REST API 客户端
+  └── hindsight_config.rs  # HindsightConfig
+
+zeroclaw-config
+  └── schema.rs            # HindsightSchemaConfig（配置层）
+```
+
+### 构建
+
+```bash
+# 安装 Rust 1.93+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+
+# 检查编译
+cargo check --workspace
+
+# 运行测试
+cargo test
+
+# Release 构建
+cargo build --release
+```
+
+### 相关项目
+
+- [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) — 基础 Agent 运行时
+- [Hindsight](https://github.com/vectorize-io/hindsight) — 长期记忆后端
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent) — 参考实现
+
+### 开源许可
+
+MIT OR Apache-2.0

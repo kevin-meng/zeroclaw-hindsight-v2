@@ -5420,6 +5420,178 @@ impl Default for QdrantConfig {
     }
 }
 
+/// Hindsight long-term memory backend configuration (`[memory.hindsight]` section).
+///
+/// Used when `[memory].backend = "hindsight"`. Connects to the Hindsight Cloud API
+/// or a local Hindsight daemon to provide semantic memory with knowledge graph,
+/// entity resolution, and multi-strategy retrieval.
+///
+/// Requires `HINDSIGHT_API_KEY` env var or `apiKey` field.
+/// See also: <https://github.com/vectorize-io/hindsight>
+#[derive(Debug, Clone, Serialize, Deserialize, Configurable)]
+#[cfg_attr(feature = "schema-export", derive(schemars::JsonSchema))]
+#[prefix = "memory.hindsight"]
+pub struct HindsightSchemaConfig {
+    /// Hindsight API URL. Defaults to the cloud API.
+    #[serde(rename = "apiUrl")]
+    #[serde(default)]
+    pub api_url: Option<String>,
+
+    /// API key for Hindsight Cloud. Defaults to `HINDSIGHT_API_KEY` env var.
+    #[serde(rename = "apiKey")]
+    #[serde(default)]
+    pub api_key: Option<String>,
+
+    /// Memory bank identifier. Defaults to "zeroclaw".
+    #[serde(rename = "bankId")]
+    #[serde(default)]
+    pub bank_id: Option<String>,
+
+    /// Recall budget: low, mid, or high. Defaults to "mid".
+    #[serde(default)]
+    pub budget: Option<String>,
+
+    /// Request timeout in seconds. Defaults to 120.
+    #[serde(rename = "timeoutSecs")]
+    #[serde(default)]
+    pub timeout_secs: Option<u64>,
+
+    /// LLM base URL (for local embedded mode with custom LLM).
+    #[serde(rename = "llmBaseUrl")]
+    #[serde(default)]
+    pub llm_base_url: Option<String>,
+
+    /// LLM provider name (for local embedded mode).
+    #[serde(rename = "llmProvider")]
+    #[serde(default)]
+    pub llm_provider: Option<String>,
+
+    /// LLM model name (for local embedded mode).
+    #[serde(rename = "llmModel")]
+    #[serde(default)]
+    pub llm_model: Option<String>,
+
+    /// Tags attached to all retained memories.
+    #[serde(default)]
+    pub retain_tags: Vec<String>,
+
+    /// Source label attached to retained memories.
+    #[serde(rename = "retainSource")]
+    #[serde(default)]
+    pub retain_source: Option<String>,
+
+    /// User prefix in retained transcripts. Defaults to "User".
+    #[serde(rename = "retainUserPrefix")]
+    #[serde(default)]
+    pub retain_user_prefix: Option<String>,
+
+    /// Assistant prefix in retained transcripts. Defaults to "Assistant".
+    #[serde(rename = "retainAssistantPrefix")]
+    #[serde(default)]
+    pub retain_assistant_prefix: Option<String>,
+
+    /// Whether to auto-retain turns. Defaults to true.
+    #[serde(rename = "autoRetain")]
+    #[serde(default)]
+    pub auto_retain: Option<bool>,
+
+    /// Whether to auto-recall memories before each turn. Defaults to true.
+    #[serde(rename = "autoRecall")]
+    #[serde(default)]
+    pub auto_recall: Option<bool>,
+
+    /// Retain every N turns. Defaults to 1 (every turn).
+    #[serde(rename = "retainEveryNTurns")]
+    #[serde(default)]
+    pub retain_every_n_turns: Option<usize>,
+
+    /// Retain context description.
+    #[serde(rename = "retainContext")]
+    #[serde(default)]
+    pub retain_context: Option<String>,
+
+    /// Max tokens for recall response. Defaults to 4096.
+    #[serde(rename = "recallMaxTokens")]
+    #[serde(default)]
+    pub recall_max_tokens: Option<usize>,
+
+    /// Max input chars for prefetch query. Defaults to 800.
+    #[serde(rename = "recallMaxInputChars")]
+    #[serde(default)]
+    pub recall_max_input_chars: Option<usize>,
+
+    /// Recall prompt preamble.
+    #[serde(rename = "recallPromptPreamble")]
+    #[serde(default)]
+    pub recall_prompt_preamble: Option<String>,
+
+    /// Retain asynchronously. Defaults to true.
+    #[serde(rename = "retainAsync")]
+    #[serde(default)]
+    pub retain_async: Option<bool>,
+}
+
+impl Default for HindsightSchemaConfig {
+    fn default() -> Self {
+        Self {
+            api_url: None,
+            api_key: None,
+            bank_id: Some("zeroclaw".to_string()),
+            budget: Some("mid".to_string()),
+            timeout_secs: Some(120),
+            llm_base_url: None,
+            llm_provider: None,
+            llm_model: None,
+            retain_tags: Vec::new(),
+            retain_source: None,
+            retain_user_prefix: Some("User".to_string()),
+            retain_assistant_prefix: Some("Assistant".to_string()),
+            auto_retain: Some(true),
+            auto_recall: Some(true),
+            retain_every_n_turns: Some(1),
+            retain_context: Some("conversation between ZeroClaw Agent and the User".to_string()),
+            recall_max_tokens: Some(4096),
+            recall_max_input_chars: Some(800),
+            recall_prompt_preamble: None,
+            retain_async: Some(true),
+        }
+    }
+}
+
+impl HindsightSchemaConfig {
+    /// Resolve the effective API URL.
+    pub fn api_url(&self) -> String {
+        self.api_url
+            .clone()
+            .unwrap_or_else(|| "https://api.hindsight.vectorize.io".to_string())
+    }
+
+    /// Resolve the effective bank ID.
+    pub fn bank_id(&self) -> String {
+        self.bank_id.clone().unwrap_or_else(|| "zeroclaw".to_string())
+    }
+
+    /// Resolve the effective budget as a string.
+    pub fn budget_str(&self) -> String {
+        self.budget.clone().unwrap_or_else(|| "mid".to_string())
+    }
+
+    /// Resolve the effective timeout in seconds.
+    pub fn timeout(&self) -> u64 {
+        self.timeout_secs.unwrap_or(120)
+    }
+
+    /// Resolve the effective max recall tokens.
+    pub fn recall_max_tokens(&self) -> usize {
+        self.recall_max_tokens.unwrap_or(4096)
+    }
+
+    /// Resolve the effective max input chars.
+    pub fn recall_max_input_chars(&self) -> usize {
+        self.recall_max_input_chars.unwrap_or(800)
+    }
+}
+
 /// Search strategy for memory recall.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(feature = "schema-export", derive(schemars::JsonSchema))]
@@ -5572,6 +5744,13 @@ pub struct MemoryConfig {
     #[serde(default)]
     #[nested]
     pub postgres: PostgresMemoryConfig,
+
+    // ── Hindsight backend options ──────────────────────────────
+    /// Configuration for Hindsight long-term memory backend (`[memory.hindsight]`).
+    /// Only used when `backend = "hindsight"`.
+    #[serde(default)]
+    #[nested]
+    pub hindsight: HindsightSchemaConfig,
 }
 
 /// Memory policy configuration (`[memory.policy]` section).
@@ -5700,6 +5879,7 @@ impl Default for MemoryConfig {
             sqlite_open_timeout_secs: None,
             qdrant: QdrantConfig::default(),
             postgres: PostgresMemoryConfig::default(),
+            hindsight: HindsightSchemaConfig::default(),
         }
     }
 }

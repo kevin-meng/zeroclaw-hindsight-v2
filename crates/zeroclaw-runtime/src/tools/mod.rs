@@ -110,6 +110,11 @@ pub use zeroclaw_tools::web_fetch::WebFetchTool;
 pub use zeroclaw_tools::web_search_tool::WebSearchTool;
 pub use zeroclaw_tools::workspace_tool::WorkspaceTool;
 pub use zeroclaw_tools::wrappers::{PathGuardedTool, RateLimitedTool};
+pub use zeroclaw_tools::hindsight_client::HindsightClient;
+pub use zeroclaw_tools::hindsight_config::HindsightConfig;
+pub use zeroclaw_tools::hindsight_retain::HindsightRetainTool;
+pub use zeroclaw_tools::hindsight_recall::HindsightRecallTool;
+pub use zeroclaw_tools::hindsight_reflect::HindsightReflectTool;
 
 // Traits from zeroclaw-api
 pub use zeroclaw_api::schema::{CleaningStrategy, SchemaCleanr};
@@ -419,6 +424,47 @@ pub fn all_tools_with_runtime(
                 tracing::warn!("discord_search: failed to open discord.db: {e}");
             }
         }
+    }
+
+    // Register Hindsight long-term memory tools when memory backend is "hindsight"
+    if root_config.memory.backend == "hindsight" {
+        use zeroclaw_tools::hindsight::Budget;
+        let hindsight_cfg = &root_config.memory.hindsight;
+        let budget = match hindsight_cfg.budget_str().as_str() {
+            "low" => Budget::Low,
+            "high" => Budget::High,
+            _ => Budget::Mid,
+        };
+        let client = Arc::new(HindsightClient::new(
+            hindsight_cfg.api_url(),
+            hindsight_cfg.api_key.clone().unwrap_or_default(),
+            hindsight_cfg.bank_id(),
+            budget,
+        ));
+        tool_arcs.push(Arc::new(HindsightRetainTool::new(
+            client.clone(),
+            hindsight_cfg.bank_id(),
+            None, // session_id — set by runtime context
+            None, // platform — set by runtime context
+            None, // user_id — set by runtime context
+        )));
+        tool_arcs.push(Arc::new(HindsightRecallTool::new(
+            client.clone(),
+            hindsight_cfg.bank_id(),
+            budget,
+            hindsight_cfg.recall_max_tokens(),
+            hindsight_cfg.recall_max_input_chars(),
+        )));
+        tool_arcs.push(Arc::new(HindsightReflectTool::new(
+            client,
+            hindsight_cfg.bank_id(),
+            budget,
+        )));
+        tracing::info!(
+            "Hindsight memory tools registered (bank={}, budget={})",
+            hindsight_cfg.bank_id(),
+            hindsight_cfg.budget_str()
+        );
     }
 
     // LLM task tool — always registered when a provider is configured
