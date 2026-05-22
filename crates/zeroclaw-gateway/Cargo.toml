@@ -40,7 +40,7 @@ include_dir = { version = "0.7", optional = true }
 schemars = { version = "1.2", optional = true }
 
 # Async runtime
-tokio = { version = "1.50", default-features = false, features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync", "signal"] }
+tokio = { version = "1.52", default-features = false, features = ["rt-multi-thread", "macros", "time", "net", "io-util", "sync", "signal"] }
 tokio-stream = { version = "0.1.18", default-features = false, features = ["sync"] }
 tokio-util = { version = "0.7", default-features = false }
 futures-util = { version = "0.3", default-features = false, features = ["sink"] }
@@ -75,7 +75,7 @@ uuid = { version = "1.22", default-features = false, features = ["v4", "std"] }
 rand = "0.10"
 rcgen = "0.13"
 tempfile = "3.26"
-tokio = { version = "1.50", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.52", features = ["rt-multi-thread", "macros"] }
 
 [features]
 default = ["schema-export"]
