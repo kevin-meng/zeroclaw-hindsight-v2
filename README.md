@@ -1,231 +1,254 @@
-# ZeroClaw + Hindsight Long-Term Memory
+<p align="center">
+  <img src="docs/assets/zeroclaw-trans.png" alt="ZeroClaw" width="120" />
+</p>
 
-[English](#english) · [中文](#中文)
+<h1 align="center">ZeroClaw × Hindsight</h1>
+
+<p align="center">
+  <strong>Persistent long-term memory for ZeroClaw agents.</strong><br/>
+  Retain facts, recall relevant context, and reason across memories with Hindsight.
+</p>
+
+<p align="center">
+  <a href="README_CN.md">中文</a>
+  ·
+  <a href="#quick-start">Quick Start</a>
+  ·
+  <a href="#architecture">Architecture</a>
+  ·
+  <a href="https://github.com/zeroclaw-labs/zeroclaw">ZeroClaw</a>
+  ·
+  <a href="https://github.com/vectorize-io/hindsight">Hindsight</a>
+</p>
+
+<p align="center">
+  <img alt="Rust" src="https://img.shields.io/badge/Rust-agent%20runtime-000000?style=flat-square&logo=rust">
+  <img alt="Memory" src="https://img.shields.io/badge/memory-Hindsight-5B5BD6?style=flat-square">
+  <img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square">
+</p>
 
 ---
 
-## English
+## Why this exists
 
-> **ZeroClaw** is a Rust-first autonomous AI agent runtime — fast, small, and extensible.
-> This fork adds **Hindsight** long-term memory integration, giving the agent persistent semantic memory with knowledge graph and cross-memory reasoning.
+Most agent conversations are still effectively stateless: once a session ends, useful preferences, decisions, and context disappear or have to be re-injected manually.
 
-### What is Hindsight?
+This repository extends **ZeroClaw** with a Hindsight-backed memory layer so an agent can work with information that survives individual sessions.
 
-[Hindsight](https://github.com/vectorize-io/hindsight) is a cloud-native long-term memory service for AI agents. It provides:
+The integration intentionally separates three different memory operations:
 
-- **Semantic Search** — Store and retrieve memories using natural language
-- **Knowledge Graph** — Entity resolution and relationship tracking across memories
-- **Cross-Memory Reasoning** — Synthesize insights from multiple related memories
-- **Multi-Strategy Retrieval** — adaptive recall based on query context and budget
+- **Retain** — write durable facts, preferences, notes, or context.
+- **Recall** — retrieve relevant memories with semantic search.
+- **Reflect** — synthesize patterns and implications across multiple memories.
 
-### Features
+That distinction matters: retrieval answers *“what do I remember?”* while reflection can help answer *“what does the accumulated memory imply?”*.
 
-| Feature | Description |
-|---------|-------------|
-| `hindsight_retain` | Store information to long-term memory with context and tags |
-| `hindsight_recall` | Semantic search across all stored memories |
-| `hindsight_reflect` | Reason across memories to synthesize a coherent answer |
-| Configurable Budget | `low` / `mid` / `high` recall depth control |
-| Auto-retain | Optional automatic memory capture on each conversation turn |
+## What this repository adds
 
-### Quick Start
+| Capability | Tool | What it does |
+| --- | --- | --- |
+| Durable memory | `hindsight_retain` | Stores a fact, preference, note, or structured context |
+| Semantic retrieval | `hindsight_recall` | Searches long-term memory and returns ranked results |
+| Cross-memory reasoning | `hindsight_reflect` | Synthesizes an answer across multiple stored memories |
+| Search-depth control | `low / mid / high` | Trades latency/cost for retrieval or reasoning depth |
+| Memory organization | tags / source / bank | Keeps memories grouped and filterable |
+| API compatibility probe | Hindsight version check | Detects supported backend capabilities at runtime |
 
-#### 1. Configure ZeroClaw
+The implementation lives primarily in `crates/zeroclaw-tools/src/hindsight*.rs`.
+
+## Mental model
+
+```mermaid
+flowchart LR
+    U[User / Agent Session] --> Z[ZeroClaw Runtime]
+
+    Z -->|store durable context| R[hindsight_retain]
+    Z -->|find relevant context| C[hindsight_recall]
+    Z -->|synthesize across memories| F[hindsight_reflect]
+
+    R --> H[(Hindsight Memory Bank)]
+    C --> H
+    F --> H
+
+    H -->|semantic results| C
+    H -->|cross-memory synthesis| F
+
+    C --> Z
+    F --> Z
+```
+
+The important design choice is that **Hindsight is a memory backend, not a second agent runtime**. ZeroClaw remains responsible for the agent loop and tool execution; Hindsight provides durable memory operations.
+
+## Quick Start
+
+### 1. Prerequisites
+
+- Rust toolchain compatible with this repository
+- A Hindsight API endpoint and API key
+- A ZeroClaw configuration using the Hindsight memory backend
+
+### 2. Configure memory
+
+Add the following to your ZeroClaw configuration:
 
 ```toml
-# config.toml
-
 [memory]
 backend = "hindsight"
 
 [memory.hindsight]
 api_url = "https://api.hindsight.vectorize.io"
-api_key = "${HINDSIGHT_API_KEY}"   # Set env var or use literal key
-bank_id = "zeroclaw"               # Your memory bank identifier
-budget = "mid"                     # low | mid | high
+api_key = "${HINDSIGHT_API_KEY}"
+bank_id = "zeroclaw"
+budget = "mid"
 timeout_secs = 120
 ```
 
-#### 2. Environment Variable
+Set the API key as an environment variable:
 
 ```bash
 export HINDSIGHT_API_KEY="your-api-key-here"
 ```
 
-#### 3. Run
+### 3. Run
 
 ```bash
 cargo run --release
 ```
 
-### Configuration Reference
-
-| Field | Type | Default | Description |
-|-------|------|---------|-------------|
-| `api_url` | `string` | `https://api.hindsight.vectorize.io` | Hindsight API endpoint |
-| `api_key` | `string` | `${HINDSIGHT_API_KEY}` | API key (or env var) |
-| `bank_id` | `string` | `zeroclaw` | Memory bank identifier |
-| `budget` | `string` | `mid` | Recall budget: `low`, `mid`, or `high` |
-| `timeout_secs` | `u64` | `120` | Request timeout in seconds |
-| `auto_retain` | `bool` | `true` | Automatically retain each turn |
-| `auto_recall` | `bool` | `true` | Automatically recall relevant memories before each turn |
-| `retain_tags` | `[]string` | `[]` | Tags attached to all retained memories |
-| `retain_source` | `string` | `null` | Source label for retained memories |
-
-### Architecture
-
-```
-zeroclaw-runtime
-  └── tools/mod.rs          # Tool registration
-       ├── hindsight_retain.rs   # retain tool
-       ├── hindsight_recall.rs  # recall tool
-       └── hindsight_reflect.rs # reflect tool
-
-zeroclaw-tools
-  ├── hindsight.rs         # Shared types (Budget, RecallResult, ...)
-  ├── hindsight_client.rs  # REST API client
-  └── hindsight_config.rs  # HindsightConfig (zeroclaw-tools layer)
-
-zeroclaw-config
-  └── schema.rs            # HindsightSchemaConfig (config layer)
-```
-
-### Build
+For development:
 
 ```bash
-# Install Rust 1.93+
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Check compilation
 cargo check --workspace
-
-# Run tests
 cargo test
-
-# Build release
-cargo build --release
 ```
 
-### Related Projects
+## Tool examples
 
-- [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) — The base agent runtime
-- [Hindsight](https://github.com/vectorize-io/hindsight) — Long-term memory backend
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent) — Reference implementation
+### Retain
 
-### License
+Store a durable preference or decision:
 
-MIT OR Apache-2.0
+```json
+{
+  "content": "The user prefers concise weekly project summaries.",
+  "context": "Communication preference",
+  "tags": ["preference", "communication"]
+}
+```
+
+### Recall
+
+Retrieve relevant memories:
+
+```json
+{
+  "query": "How does the user prefer project updates?",
+  "budget": "mid",
+  "limit": 5,
+  "tags": ["communication"]
+}
+```
+
+### Reflect
+
+Reason across multiple memories:
+
+```json
+{
+  "query": "What recurring priorities can be inferred from the user's project decisions?",
+  "budget": "high"
+}
+```
+
+## Configuration
+
+The runtime configuration currently supports:
+
+| Field | Default | Purpose |
+| --- | --- | --- |
+| `api_url` | Hindsight cloud API | Backend endpoint |
+| `api_key` | `HINDSIGHT_API_KEY` | Authentication |
+| `bank_id` | `zeroclaw` | Memory bank identifier |
+| `budget` | `mid` | Default recall / reflect depth |
+| `timeout_secs` | `120` | Request timeout |
+| `retain_tags` | `[]` | Tags attached to retained memories |
+| `retain_source` | unset | Optional source label |
+| `retain_user_prefix` | `User` | User transcript prefix |
+| `retain_assistant_prefix` | `Assistant` | Assistant transcript prefix |
+| `recall_max_tokens` | `4096` | Maximum recall response budget |
+| `recall_max_input_chars` | `800` | Maximum recall query length |
+| `recall_prompt_preamble` | unset | Optional recall prompt preamble |
+
+> This table mirrors the current code in `HindsightConfig`. If the configuration and documentation ever disagree, the implementation is the source of truth.
+
+## Architecture
+
+```text
+ZeroClaw runtime
+│
+├── agent loop
+├── tool registry
+│   ├── hindsight_retain
+│   ├── hindsight_recall
+│   └── hindsight_reflect
+│
+└── zeroclaw-tools
+    ├── hindsight.rs          # shared types
+    ├── hindsight_config.rs   # runtime configuration
+    ├── hindsight_client.rs   # Hindsight REST client
+    ├── hindsight_retain.rs   # durable writes
+    ├── hindsight_recall.rs   # semantic retrieval
+    └── hindsight_reflect.rs  # cross-memory synthesis
+             │
+             ▼
+       Hindsight API
+       ├── memories
+       ├── recall
+       └── reflect
+```
+
+### Data flow
+
+1. ZeroClaw decides a memory operation is useful.
+2. The corresponding tool validates and normalizes the request.
+3. `HindsightClient` sends the request to the configured memory bank.
+4. Hindsight stores, retrieves, or synthesizes memory.
+5. The tool returns structured text back into the ZeroClaw agent loop.
+
+## Design principles
+
+**Persistent, not magical.** Memory should be explicit and inspectable rather than an invisible side effect.
+
+**Retrieval and reasoning are different.** `recall` returns relevant evidence; `reflect` performs synthesis across memories.
+
+**Keep the agent runtime separate from the memory service.** This keeps the integration easier to understand, replace, and test.
+
+**Configuration should stay honest.** The README documents only options that exist in the current codebase.
+
+## Status
+
+This repository is an integration project built on top of the ZeroClaw codebase. It is useful for exploring persistent agent memory, but it should be treated as an engineering project rather than a claim that long-term memory is “solved.”
+
+Areas worth improving next:
+
+- integration tests against a reproducible Hindsight test environment
+- observable memory traces for retain / recall / reflect calls
+- benchmark scenarios for memory precision, recall, latency, and cost
+- clearer policies for what should or should not be retained
+- migration and failure-handling documentation
+
+## Upstream & attribution
+
+This repository extends **[ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw)** and integrates **[Hindsight](https://github.com/vectorize-io/hindsight)** as a long-term memory service.
+
+The goal of this repository is to make that integration explicit and easy to inspect. ZeroClaw and Hindsight are independent upstream projects; this repository does not imply affiliation with either project beyond using and extending their published software.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
 
 ---
 
-## 中文
-
-> **ZeroClaw** 是一个 Rust-first 的自主 AI Agent 运行时——快、小巧、可扩展。
-> 本分支集成了 **Hindsight** 长期记忆系统，为 Agent 提供持久化语义记忆、知识图谱和跨记忆推理能力。
-
-### 什么是 Hindsight？
-
-[Hindsight](https://github.com/vectorize-io/hindsight) 是面向 AI Agent 的云端长期记忆服务，提供：
-
-- **语义搜索** — 用自然语言存储和检索记忆
-- **知识图谱** — 跨记忆的实体解析和关系追踪
-- **跨记忆推理** — 从多个相关记忆中综合提炼洞察
-- **多策略检索** — 根据查询上下文和预算自适应召回
-
-### 功能一览
-
-| 功能 | 说明 |
-|------|------|
-| `hindsight_retain` | 将信息存入长期记忆，支持上下文和标签 |
-| `hindsight_recall` | 在所有存储记忆中语义搜索 |
-| `hindsight_reflect` | 跨记忆推理，综合连贯答案 |
-| 可配置预算 | `low` / `mid` / `high` 三档召回深度 |
-| 自动记忆 | 可选：每次对话轮次自动捕获记忆 |
-
-### 快速开始
-
-#### 1. 配置 ZeroClaw
-
-```toml
-# config.toml
-
-[memory]
-backend = "hindsight"
-
-[memory.hindsight]
-api_url = "https://api.hindsight.vectorize.io"
-api_key = "${HINDSIGHT_API_KEY}"   # 设置环境变量或直接写 key
-bank_id = "zeroclaw"               # 你的记忆库标识符
-budget = "mid"                     # low | mid | high
-timeout_secs = 120
-```
-
-#### 2. 设置环境变量
-
-```bash
-export HINDSIGHT_API_KEY="your-api-key-here"
-```
-
-#### 3. 运行
-
-```bash
-cargo run --release
-```
-
-### 配置参考
-
-| 字段 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `api_url` | `string` | `https://api.hindsight.vectorize.io` | Hindsight API 地址 |
-| `api_key` | `string` | `${HINDSIGHT_API_KEY}` | API 密钥 |
-| `bank_id` | `string` | `zeroclaw` | 记忆库标识符 |
-| `budget` | `string` | `mid` | 召回预算：`low`、`mid` 或 `high` |
-| `timeout_secs` | `u64` | `120` | 请求超时（秒） |
-| `auto_retain` | `bool` | `true` | 自动保留每轮对话 |
-| `auto_recall` | `bool` | `true` | 每轮对话前自动召回相关记忆 |
-| `retain_tags` | `[]string` | `[]` | 附加到所有记忆的标签 |
-| `retain_source` | `string` | `null` | 记忆来源标签 |
-
-### 项目结构
-
-```
-zeroclaw-runtime
-  └── tools/mod.rs          # 工具注册
-       ├── hindsight_retain.rs   # retain 工具
-       ├── hindsight_recall.rs  # recall 工具
-       └── hindsight_reflect.rs # reflect 工具
-
-zeroclaw-tools
-  ├── hindsight.rs         # 共享类型（Budget, RecallResult, …）
-  ├── hindsight_client.rs  # REST API 客户端
-  └── hindsight_config.rs  # HindsightConfig
-
-zeroclaw-config
-  └── schema.rs            # HindsightSchemaConfig（配置层）
-```
-
-### 构建
-
-```bash
-# 安装 Rust 1.93+
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# 检查编译
-cargo check --workspace
-
-# 运行测试
-cargo test
-
-# Release 构建
-cargo build --release
-```
-
-### 相关项目
-
-- [ZeroClaw](https://github.com/zeroclaw-labs/zeroclaw) — 基础 Agent 运行时
-- [Hindsight](https://github.com/vectorize-io/hindsight) — 长期记忆后端
-- [Hermes Agent](https://github.com/NousResearch/hermes-agent) — 参考实现
-
-### 开源许可
-
-MIT OR Apache-2.0
+<p align="center">
+  <sub>Part of my work on AI agents, persistent memory, and reusable knowledge systems.</sub>
+</p>
